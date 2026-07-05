@@ -2,8 +2,13 @@ import { useMemo, useState } from "react";
 import { campusGraph } from "./data/campusGraph";
 import { findShortestPath } from "./lib/pathfinding";
 import { CampusMap } from "./components/CampusMap";
-import type { NodeId } from "./types/graph";
+import { IndoorFloorPlan } from "./components/IndoorFloorPlan";
+import type { IndoorNode, NodeId } from "./types/graph";
 import "./App.css";
+
+function isIndoorNode(node: (typeof campusGraph.nodes)[number]): node is IndoorNode {
+  return node.location === "indoor";
+}
 
 function App() {
   const [startId, setStartId] = useState<NodeId>(campusGraph.nodes[0].id);
@@ -11,11 +16,22 @@ function App() {
   const [route, setRoute] = useState<{ path: NodeId[]; distance: number } | null>(
     null
   );
+  const [view, setView] = useState<"map" | "floorplan">("map");
 
   const sortedNodes = useMemo(
     () => [...campusGraph.nodes].sort((a, b) => a.label.localeCompare(b.label)),
     []
   );
+
+  const indoorStopsInRoute = useMemo(() => {
+    if (!route) return [];
+    return route.path
+      .map((id) => campusGraph.nodes.find((n) => n.id === id))
+      .filter((n): n is IndoorNode => Boolean(n) && isIndoorNode(n));
+  }, [route]);
+
+  const indoorBuilding = indoorStopsInRoute[0]?.buildingId ?? null;
+  const indoorFloor = indoorStopsInRoute[0]?.floor ?? null;
 
   const handleFindRoute = () => {
     if (startId === endId) {
@@ -24,6 +40,7 @@ function App() {
     }
     const result = findShortestPath(campusGraph, startId, endId);
     setRoute(result);
+    setView("map");
   };
 
   return (
@@ -66,15 +83,43 @@ function App() {
         {route === null && startId === endId && (
           <p className="hint">Pick two different locations.</p>
         )}
+
+        {indoorBuilding && (
+          <div className="view-toggle">
+            <button
+              className={view === "map" ? "active" : ""}
+              onClick={() => setView("map")}
+            >
+              Map
+            </button>
+            <button
+              className={view === "floorplan" ? "active" : ""}
+              onClick={() => setView("floorplan")}
+            >
+              Floor Plan
+            </button>
+          </div>
+        )}
       </aside>
 
       <main className="map-area">
-        <CampusMap
-          graph={campusGraph}
-          path={route?.path ?? null}
-          startId={route ? startId : null}
-          endId={route ? endId : null}
-        />
+        {view === "floorplan" && indoorBuilding && indoorFloor !== null ? (
+          <IndoorFloorPlan
+            graph={campusGraph}
+            buildingId={indoorBuilding}
+            floor={indoorFloor}
+            path={route?.path ?? []}
+            startId={route ? startId : null}
+            endId={route ? endId : null}
+          />
+        ) : (
+          <CampusMap
+            graph={campusGraph}
+            path={route?.path ?? null}
+            startId={route ? startId : null}
+            endId={route ? endId : null}
+          />
+        )}
       </main>
     </div>
   );

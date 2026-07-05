@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
-import type { CampusGraph, NodeId } from "../types/graph";
+import type { CampusGraph, NodeId, OutdoorNode } from "../types/graph";
 import { CAMPUS_CENTER } from "../data/campusGraph";
 
 interface CampusMapProps {
@@ -10,6 +10,10 @@ interface CampusMapProps {
   endId: NodeId | null;
 }
 
+function isOutdoorNode(node: CampusGraph["nodes"][number]): node is OutdoorNode {
+  return node.location === "outdoor";
+}
+
 export function CampusMap({ graph, path, startId, endId }: CampusMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -17,6 +21,10 @@ export function CampusMap({ graph, path, startId, endId }: CampusMapProps) {
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
+
+    const outdoorNodes = graph.nodes.filter(isOutdoorNode);
+    const outdoorNodeIds = new Set(outdoorNodes.map((n) => n.id));
+    const outdoorNodeById = new Map(outdoorNodes.map((n) => [n.id, n]));
 
     const map = L.map(containerRef.current).setView(
       [CAMPUS_CENTER.lat, CAMPUS_CENTER.lng],
@@ -30,9 +38,9 @@ export function CampusMap({ graph, path, startId, endId }: CampusMapProps) {
 
     const edgeLayer = L.layerGroup().addTo(map);
     for (const edge of graph.edges) {
-      const from = graph.nodes.find((n) => n.id === edge.from);
-      const to = graph.nodes.find((n) => n.id === edge.to);
-      if (!from || !to) continue;
+      if (!outdoorNodeIds.has(edge.from) || !outdoorNodeIds.has(edge.to)) continue;
+      const from = outdoorNodeById.get(edge.from)!;
+      const to = outdoorNodeById.get(edge.to)!;
 
       L.polyline(
         [
@@ -44,7 +52,7 @@ export function CampusMap({ graph, path, startId, endId }: CampusMapProps) {
     }
 
     const nodeLayer = L.layerGroup().addTo(map);
-    for (const node of graph.nodes) {
+    for (const node of outdoorNodes) {
       L.circleMarker([node.lat, node.lng], {
         radius: 7,
         color: "#1e293b",
@@ -69,17 +77,23 @@ export function CampusMap({ graph, path, startId, endId }: CampusMapProps) {
 
     if (!path || path.length === 0) return;
 
+    const outdoorNodeById = new Map(
+      graph.nodes.filter(isOutdoorNode).map((n) => [n.id, n])
+    );
+
     const coords = path
-      .map((id) => graph.nodes.find((n) => n.id === id))
-      .filter((n): n is NonNullable<typeof n> => Boolean(n))
+      .map((id) => outdoorNodeById.get(id))
+      .filter((n): n is OutdoorNode => Boolean(n))
       .map((n) => [n.lat, n.lng] as [number, number]);
+
+    if (coords.length === 0) return;
 
     L.polyline(coords, { color: "#f97316", weight: 5, opacity: 0.9 }).addTo(
       routeLayer
     );
 
     for (const id of [startId, endId]) {
-      const node = graph.nodes.find((n) => n.id === id);
+      const node = id ? outdoorNodeById.get(id) : undefined;
       if (!node) continue;
 
       L.circleMarker([node.lat, node.lng], {
