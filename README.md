@@ -5,30 +5,31 @@
 ![Leaflet](https://img.shields.io/badge/Leaflet-199900?style=for-the-badge&logo=leaflet&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)
 
-Real-time campus navigation built for Amity University, Noida. Finds the shortest walkable route between any two points on campus using a graph model of real map data.
+Real-time campus navigation built for Amity University, Noida. Finds the shortest route between any two points on campus — outdoors or inside a building — using a single unified graph model of real map data.
 
 ---
 
 ## ✨ Features
 
 - 🗺️ **Real campus map** — built on Leaflet + OpenStreetMap tiles, centered on Amity University Noida's actual coordinates.
-- 🧩 **Graph-based world model** — campus landmarks (gates, blocks, courts, hostels) represented as nodes, walkable paths as weighted edges.
-- 📏 **Real-world distances** — edge weights computed via the haversine formula from actual lat/lng coordinates, not arbitrary numbers.
-- 🔍 **Dijkstra's algorithm** — shortest-path routing implemented from scratch, no pathfinding library.
-- 🎯 **Visual routing** — selected route is drawn live on the map, with distinct start/end markers and total distance shown.
+- 🏢 **Indoor navigation** — building interiors modeled as SVG floor plans, with rooms, corridors, and stairs as graph nodes.
+- 🧩 **Unified graph model** — outdoor landmarks and indoor rooms live in the same graph. Building entrances are the bridge between the two, so a single route can start outside and end at a specific room.
+- 📏 **Real-world distances** — outdoor edge weights computed via the haversine formula from actual lat/lng coordinates; indoor edges weighted by estimated walking distance.
+- 🔍 **Dijkstra's algorithm** — shortest-path routing implemented from scratch, no pathfinding library, running over the full outdoor + indoor graph.
+- 🎯 **Smart view switching** — the app automatically shows the map for outdoor routes and switches to the relevant floor plan the moment a route enters a building.
 
 ---
 
 ## 🏗️ Architecture
 
-The campus is modeled as a weighted, undirected graph:
+The campus is modeled as a single weighted, undirected graph with two kinds of nodes:
 
-- **Nodes** — physical locations (Main Gate, Block A, Central Library, Sports Complex, etc.) with real latitude/longitude.
-- **Edges** — walkable connections between nodes, weighted by real-world distance in meters.
+- **Outdoor nodes** — gates, blocks, and landmarks, positioned by real latitude/longitude.
+- **Indoor nodes** — rooms, corridors, and stairs, positioned by local x/y coordinates within a building's floor plan.
 
-When a route is requested, Dijkstra's algorithm runs over the adjacency list to find the minimum-distance path, which is then rendered as a polyline on the Leaflet map.
+Every edge — indoor or outdoor — is just a weighted connection between two node IDs, so Dijkstra's algorithm doesn't need to know or care which world a node belongs to. Building entrances are the nodes that connect both graphs, which is what lets a single query like "Main Gate → Room 103" return one continuous route spanning outdoor pavement and indoor corridors.
 
-> This graph model is what makes indoor navigation (multi-floor, room-level) a natural extension — indoor nodes just plug into the same graph via building entrance points.
+Rendering is what actually differs: outdoor nodes are drawn on the Leaflet map, indoor nodes are drawn on an SVG floor plan. The app picks whichever view matches where the current route actually goes.
 
 ---
 
@@ -38,7 +39,8 @@ When a route is requested, Dijkstra's algorithm runs over the adjacency list to 
 |---|---|
 | UI framework | React + TypeScript |
 | Build tool | Vite |
-| Map rendering | Leaflet (OpenStreetMap tiles) |
+| Outdoor map rendering | Leaflet (OpenStreetMap tiles) |
+| Indoor map rendering | Custom SVG floor plans |
 | Pathfinding | Custom Dijkstra implementation |
 | Distance calculation | Haversine formula |
 
@@ -65,6 +67,7 @@ npm run dev
 - [x] Dijkstra's shortest-path routing
 - [x] Interactive map with route visualization
 - [x] Indoor navigation (SVG floor plans, room-level)
+- [x] Unified outdoor + indoor routing with smart view switching
 - [ ] Search with autocomplete
 - [ ] Turn-by-turn walking directions
 - [ ] Mobile-responsive layout
@@ -72,6 +75,4 @@ npm run dev
 
 ---
 
-## 📄 License
-
-MIT © [compiledbyutkarsh](https://github.com/compiledbyutkarsh)
+Built by [compiledbyutkarsh](https://github.com/compiledbyutkarsh)
