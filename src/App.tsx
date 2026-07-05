@@ -1,6 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { campusGraph } from "./data/campusGraph";
 import { findShortestPath } from "./lib/pathfinding";
+import { generateDirections } from "./lib/directions";
+import { useGeolocation } from "./hooks/useGeolocation";
+import { withUserLocation, MY_LOCATION_ID } from "./lib/graphWithLocation";
 import { CampusMap } from "./components/CampusMap";
 import { IndoorFloorPlan } from "./components/IndoorFloorPlan";
 import type { IndoorNode, NodeId } from "./types/graph";
@@ -17,18 +20,38 @@ function App() {
     null
   );
   const [view, setView] = useState<"map" | "floorplan">("map");
+  const { position, error: locationError, isTracking, start, stop } = useGeolocation();
+
+  const activeGraph = useMemo(() => {
+    if (isTracking && position) return withUserLocation(campusGraph, position);
+    return campusGraph;
+  }, [isTracking, position]);
+
+  useEffect(() => {
+    if (isTracking && position && startId !== MY_LOCATION_ID) {
+      setStartId(MY_LOCATION_ID);
+    }
+    if (!isTracking && startId === MY_LOCATION_ID) {
+      setStartId(campusGraph.nodes[0].id);
+    }
+  }, [isTracking, position, startId]);
 
   const sortedNodes = useMemo(
     () => [...campusGraph.nodes].sort((a, b) => a.label.localeCompare(b.label)),
     []
   );
 
+  const directions = useMemo(() => {
+    if (!route) return [];
+    return generateDirections(activeGraph, route.path);
+  }, [route, activeGraph]);
+
   const indoorStopsInRoute = useMemo(() => {
     if (!route) return [];
     return route.path
-      .map((id) => campusGraph.nodes.find((n) => n.id === id))
-      .filter((n): n is IndoorNode => Boolean(n) && isIndoorNode(n));
-  }, [route]);
+      .map((id) => activeGraph.nodes.find((n) => n.id === id))
+      .filter((n): n is IndoorNode => n !== undefined && isIndoorNode(n));
+  }, [route, activeGraph]);
 
   const indoorBuilding = indoorStopsInRoute[0]?.buildingId ?? null;
   const indoorFloor = indoorStopsInRoute[0]?.floor ?? null;
@@ -38,11 +61,11 @@ function App() {
       setRoute(null);
       return;
     }
-    const result = findShortestPath(campusGraph, startId, endId);
+    const result = findShortestPath(activeGraph, startId, endId);
     setRoute(result);
 
     const hasIndoorStop = result?.path.some((id) => {
-      const node = campusGraph.nodes.find((n) => n.id === id);
+      const node = activeGraph.nodes.find((n) => n.id === id);
       return node?.location === "indoor";
     });
 
@@ -58,6 +81,9 @@ function App() {
         <label>
           From
           <select value={startId} onChange={(e) => setStartId(e.target.value)}>
+            {isTracking && position && (
+              <option value={MY_LOCATION_ID}>My Location (live)</option>
+            )}
             {sortedNodes.map((node) => (
               <option key={node.id} value={node.id}>
                 {node.label}
@@ -90,6 +116,28 @@ function App() {
           <p className="hint">Pick two different locations.</p>
         )}
 
+        {route && directions.length > 0 && (
+          <ol className="directions-list">
+            {directions.map((step, i) => (
+              <li key={i}>
+                <span>{step.text}</span>
+                {step.distance > 0 && (
+                  <small>{Math.round(step.distance)} m</small>
+                )}
+              </li>
+            ))}
+          </ol>
+        )}
+
+        <button
+          className="location-button"
+          onClick={isTracking ? stop : start}
+        >
+          {isTracking ? "Stop Tracking" : "Track My Location"}
+        </button>
+
+        {locationError && <p className="hint">{locationError}</p>}
+
         {indoorBuilding && (
           <div className="view-toggle">
             <button
@@ -111,7 +159,7 @@ function App() {
       <main className="map-area">
         {view === "floorplan" && indoorBuilding && indoorFloor !== null ? (
           <IndoorFloorPlan
-            graph={campusGraph}
+            graph={activeGraph}
             buildingId={indoorBuilding}
             floor={indoorFloor}
             path={route?.path ?? []}
@@ -120,10 +168,11 @@ function App() {
           />
         ) : (
           <CampusMap
-            graph={campusGraph}
+            graph={activeGraph}
             path={route?.path ?? null}
             startId={route ? startId : null}
             endId={route ? endId : null}
+            userLocation={position}
           />
         )}
       </main>

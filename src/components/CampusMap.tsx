@@ -8,16 +8,19 @@ interface CampusMapProps {
   path: NodeId[] | null;
   startId: NodeId | null;
   endId: NodeId | null;
+  userLocation: { lat: number; lng: number } | null;
 }
 
 function isOutdoorNode(node: CampusGraph["nodes"][number]): node is OutdoorNode {
   return node.location === "outdoor";
 }
 
-export function CampusMap({ graph, path, startId, endId }: CampusMapProps) {
+export function CampusMap({ graph, path, startId, endId, userLocation }: CampusMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
+  const userLocationLayerRef = useRef<L.LayerGroup | null>(null);
+  const hasCenteredOnUserRef = useRef(false);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -53,6 +56,7 @@ export function CampusMap({ graph, path, startId, endId }: CampusMapProps) {
 
     const nodeLayer = L.layerGroup().addTo(map);
     for (const node of outdoorNodes) {
+      if (node.id === "my_location") continue;
       L.circleMarker([node.lat, node.lng], {
         radius: 7,
         color: "#1e293b",
@@ -65,6 +69,7 @@ export function CampusMap({ graph, path, startId, endId }: CampusMapProps) {
     }
 
     routeLayerRef.current = L.layerGroup().addTo(map);
+    userLocationLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
   }, [graph]);
 
@@ -107,6 +112,33 @@ export function CampusMap({ graph, path, startId, endId }: CampusMapProps) {
 
     map.fitBounds(coords, { padding: [40, 40] });
   }, [path, startId, endId, graph]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const layer = userLocationLayerRef.current;
+    if (!map || !layer) return;
+
+    layer.clearLayers();
+
+    if (!userLocation) {
+      hasCenteredOnUserRef.current = false;
+      return;
+    }
+
+    const icon = L.divIcon({
+      className: "",
+      html: '<div class="user-location-dot"></div>',
+      iconSize: [18, 18],
+      iconAnchor: [9, 9],
+    });
+
+    L.marker([userLocation.lat, userLocation.lng], { icon }).addTo(layer);
+
+    if (!hasCenteredOnUserRef.current) {
+      map.setView([userLocation.lat, userLocation.lng], 18);
+      hasCenteredOnUserRef.current = true;
+    }
+  }, [userLocation]);
 
   return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
 }
