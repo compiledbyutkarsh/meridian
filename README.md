@@ -64,7 +64,7 @@ npm run dev
 - [x] Outdoor pathfinding with real campus coordinates
 - [x] Dijkstra's shortest-path routing
 - [x] Interactive map with route visualization
-- [ ] Indoor navigation (multi-floor, room-level)
+- [x] Indoor navigation (SVG floor plans, room-level)
 - [ ] Search with autocomplete
 - [ ] Turn-by-turn walking directions
 - [ ] Mobile-responsive layout

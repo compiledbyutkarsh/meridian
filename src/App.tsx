@@ -40,7 +40,13 @@ function App() {
     }
     const result = findShortestPath(campusGraph, startId, endId);
     setRoute(result);
-    setView("map");
+
+    const hasIndoorStop = result?.path.some((id) => {
+      const node = campusGraph.nodes.find((n) => n.id === id);
+      return node?.location === "indoor";
+    });
+
+    setView(hasIndoorStop ? "floorplan" : "map");
   };
 
   return (
