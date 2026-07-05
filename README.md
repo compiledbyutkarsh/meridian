@@ -17,6 +17,8 @@ Real-time campus navigation built for Amity University, Noida. Finds the shortes
 - 📏 **Real-world distances** — outdoor edge weights computed via the haversine formula from actual lat/lng coordinates; indoor edges weighted by estimated walking distance.
 - 🔍 **Dijkstra's algorithm** — shortest-path routing implemented from scratch, no pathfinding library, running over the full outdoor + indoor graph.
 - 🎯 **Smart view switching** — the app automatically shows the map for outdoor routes and switches to the relevant floor plan the moment a route enters a building.
+- 🧭 **Turn-by-turn directions** — step-by-step walking instructions generated from the route's geometry, with left/right/straight calculated from bearing changes between segments.
+- 📍 **Live location tracking** — your real GPS position becomes a routable node, snapped to the nearest point on the campus graph, so you can navigate from wherever you're actually standing.
 
 ---
 
@@ -68,10 +70,10 @@ npm run dev
 - [x] Interactive map with route visualization
 - [x] Indoor navigation (SVG floor plans, room-level)
 - [x] Unified outdoor + indoor routing with smart view switching
+- [x] Turn-by-turn walking directions with bearing-based turn detection
+- [x] Live location tracking (GPS-based "you are here") as a routable starting point
 - [ ] Search with autocomplete
-- [ ] Turn-by-turn walking directions
 - [ ] Mobile-responsive layout
-- [ ] Live location tracking (GPS-based "you are here")
 
 ---
 
