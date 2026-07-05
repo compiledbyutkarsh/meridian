@@ -1,122 +1,83 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useMemo, useState } from "react";
+import { campusGraph } from "./data/campusGraph";
+import { findShortestPath } from "./lib/pathfinding";
+import { CampusMap } from "./components/CampusMap";
+import type { NodeId } from "./types/graph";
+import "./App.css";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [startId, setStartId] = useState<NodeId>(campusGraph.nodes[0].id);
+  const [endId, setEndId] = useState<NodeId>(campusGraph.nodes[1].id);
+  const [route, setRoute] = useState<{ path: NodeId[]; distance: number } | null>(
+    null
+  );
+
+  const sortedNodes = useMemo(
+    () => [...campusGraph.nodes].sort((a, b) => a.label.localeCompare(b.label)),
+    []
+  );
+
+  const handleFindRoute = () => {
+    if (startId === endId) {
+      setRoute(null);
+      return;
+    }
+    const result = findShortestPath(campusGraph, startId, endId);
+    setRoute(result);
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app-shell">
+      <aside className="sidebar">
+        <h1>Meridian</h1>
+        <p className="tagline">Campus navigation for Amity Noida</p>
 
-      <div className="ticks"></div>
+        <label>
+          From
+          <select value={startId} onChange={(e) => setStartId(e.target.value)}>
+            {sortedNodes.map((node) => (
+              <option key={node.id} value={node.id}>
+                {node.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        <label>
+          To
+          <select value={endId} onChange={(e) => setEndId(e.target.value)}>
+            {sortedNodes.map((node) => (
+              <option key={node.id} value={node.id}>
+                {node.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        <button onClick={handleFindRoute}>Find Route</button>
+
+        {route && (
+          <div className="route-info">
+            <strong>{Math.round(route.distance)} m</strong>
+            <span>{route.path.length} stops</span>
+          </div>
+        )}
+
+        {route === null && startId === endId && (
+          <p className="hint">Pick two different locations.</p>
+        )}
+      </aside>
+
+      <main className="map-area">
+        <CampusMap
+          graph={campusGraph}
+          path={route?.path ?? null}
+          startId={route ? startId : null}
+          endId={route ? endId : null}
+        />
+      </main>
+    </div>
+  );
 }
 
-export default App
+export default App;
